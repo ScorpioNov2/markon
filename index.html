@@ -47,14 +47,14 @@
       content="Minimal distraction-free live Markdown editor"
     />
     <meta name="author" content="metaory" />
-    <meta property="og:url" content="https://getmarkon.com/" />
+    <meta property="og:url" content="https://metaory.github.io/markon/" />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="markon" />
     <meta
       property="og:description"
       content="Minimal distraction-free live Markdown editor"
     />
-    <meta property="og:image" content="https://getmarkon.com/screenshots.png" />
+    <meta property="og:image" content="https://metaory.github.io/markon/screenshots.png" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="markon" />
     <meta
@@ -63,7 +63,7 @@
     />
     <meta
       name="twitter:image"
-      content="https://getmarkon.com/screenshots.png"
+      content="https://metaory.github.io/markon/screenshots.png"
     />
     <meta name="color-scheme" content="dark" />
     <meta name="theme-color" content="#ff0011" />
@@ -130,10 +130,12 @@
     </div>
     <div id="toast" hidden></div>
     <script type="module" src="/src/main.js"></script>
-    <script
-      defer
-      src="/ticks.js"
-      data-website-id="8ece8abc-f669-4907-8a62-7e75504c40f0"
-    ></script>
+    <script>
+      const ghPages = 'https://metaory.github.io/markon'
+      const leaveHost = new Set(['getmarkon.com', 'www.getmarkon.com'])
+      if (leaveHost.has(location.hostname)) {
+        location.replace(ghPages + location.pathname + location.search + location.hash)
+      }
+    </script>
   </body>
 </html>

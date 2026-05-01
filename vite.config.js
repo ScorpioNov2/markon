@@ -3,7 +3,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 import pkg from './package.json' with { type: 'json' }
 
 export default defineConfig({
-	base: '/',
+	base: '/markon/',
 	define: {
 		'import.meta.env.VERSION': JSON.stringify(pkg.version),
 	},

@@ -7,11 +7,11 @@
   </strong>
   <br>
   <br>
-  <a href="https://getmarkon.com">
+  <a href="https://metaory.github.io/markon/">
     <img src="https://img.shields.io/badge/PWA-Installable-blue?style=for-the-badge&logo=pwa&logoColor=white" alt="PWA Installable" />
   </a>
   <h2>
-    <a href="https://getmarkon.com">getmarkon.com</a>
+    <a href="https://metaory.github.io/markon/">markon</a>
   </h2>
 </div>
 <hr>
@@ -189,7 +189,7 @@ Themes are automatically detected and appear in the settings dialog. Both `dark`
 > [!NOTE]
 > _in no particular order_
 
-<a href="https://getmarkon.com">getmarkon.com</a>
+<a href="https://metaory.github.io/markon/">markon</a>
 
 ---
 
