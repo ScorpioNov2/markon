@@ -54,8 +54,8 @@ export default defineConfig({
 				background_color: '#e2e2ee88',
 				display: 'standalone',
 				orientation: 'portrait-primary',
-				scope: '/',
-				start_url: '/',
+				scope: '/markon/',
+				start_url: '/markon/',
 				icons: [
 					{
 						src: 'icon-192.png',

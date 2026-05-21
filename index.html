@@ -8,7 +8,6 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, minimum-scale=0.2, maximum-scale=1.4, user-scalable=yes"
     />
-    <link rel="manifest" href="/manifest.webmanifest" />
     <title>markon</title>
     <style>
       #splash {
@@ -130,12 +129,5 @@
     </div>
     <div id="toast" hidden></div>
     <script type="module" src="/src/main.js"></script>
-    <script>
-      const ghPages = 'https://metaory.github.io/markon'
-      const leaveHost = new Set(['getmarkon.com', 'www.getmarkon.com'])
-      if (leaveHost.has(location.hostname)) {
-        location.replace(ghPages + location.pathname + location.search + location.hash)
-      }
-    </script>
   </body>
 </html>

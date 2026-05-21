@@ -65,7 +65,7 @@ npm run fix      # fix lint issues
 
 ### Preview Themes
 
-Visit `/themes` to preview all available themes side-by-side in both dark and light modes. This helps you choose the perfect theme before applying it in settings.
+Visit `https://metaory.github.io/markon/themes` to preview all available themes side-by-side in both dark and light modes. This helps you choose the perfect theme before applying it in settings.
 
 ### Color Preview
 
