@@ -579,27 +579,27 @@ html[data-theme="catppuccin"][data-mode="light"] {
 
 /* Default theme fallback */
 html:not([data-theme]) {
-	--bg: #1a0f1f;
-	--bg-light: #2d1a2d;
-	--text: #f0f0e8;
-	--brand: #ff1100;
-	--accent: #8866ff;
-	--primary: #bb66ff;
-	--secondary: #22aa88;
-	--comment: #bbbbbb;
-	--meta: #ff1100;
-	--operator: #bb88ee;
-	--keyword: #ff88bb;
-	--regex: #ff99cc;
-	--property: #4488ff;
-	--string: #22aa88;
-	--literal: #ffbb66;
-	--hint: #8866dd;
+	--bg: #0d1117;
+	--bg-light: #161b22;
+	--text: #e6edf3;
+	--brand: #f85149;
+	--accent: #58a6ff;
+	--primary: #d8b4fe;
+	--secondary: #7ee787;
+	--comment: #7d8590;
+	--meta: #ffa657;
+	--operator: #f85149;
+	--keyword: #ff7b72;
+	--regex: #ffa657;
+	--property: #79c0ff;
+	--string: #a5d6ff;
+	--literal: #d2a8ff;
+	--hint: #7ee787;
 
-	--success: #22bb11;
-	--warning: #ffaa00;
-	--info: #1199cc;
-	--error: #ff1100;
+	--success: #7ee787;
+	--warning: #ffa657;
+	--info: #58a6ff;
+	--error: #f85149;
 }
 
 html[data-theme="tomorrow"][data-mode="dark"] {

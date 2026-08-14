@@ -195,7 +195,7 @@ const ACTIONS_CONFIG = [
 		handler: async showToast => {
 			const current = document.documentElement.getAttribute('data-mode') || 'dark'
 			const next = current === 'light' ? 'dark' : 'light'
-			const theme = document.documentElement.getAttribute('data-theme') || 'panda'
+			const theme = document.documentElement.getAttribute('data-theme') || 'github'
 			await applyTheme(theme, next)
 			showToast(`theme: ${next}`, 1200, 'tabler:palette')
 		},
@@ -245,7 +245,7 @@ const ACTIONS_CONFIG = [
 		gradient: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(147, 51, 234, 0.2))',
 		showInToolbar: false,
 		handler: showToast => {
-			const currentState = localStorage.getItem('editor-sync-enabled') === 'true'
+			const currentState = localStorage.getItem('editor-sync-enabled') !== 'false'
 			const enabled = !currentState
 			localStorage.setItem('editor-sync-enabled', String(enabled))
 
