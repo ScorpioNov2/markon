@@ -229,7 +229,7 @@ const getThemeColors = themeName => {
 
 export const getPrefTheme = () => {
 	const params = new URLSearchParams(window.location.search)
-	const theme = params.get('theme') || localStorage.getItem('theme-name') || 'solarized'
+	const theme = params.get('theme') || localStorage.getItem('theme-name') || 'github'
 	const mode = params.get('mode') || localStorage.getItem('theme-mode') || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')
 
 	return { theme, mode }
@@ -242,7 +242,7 @@ const updateThemeColor = () => {
 }
 
 export const applyTheme = async (themeName, mode) => {
-	const validTheme = themeName && themeName !== 'undefined' ? themeName : 'tokyo-night'
+	const validTheme = themeName && themeName !== 'undefined' ? themeName : 'github'
 	const validMode = mode && mode !== 'undefined' ? mode : 'dark'
 
 	const html = document.documentElement
