@@ -53,9 +53,9 @@ export const initUI = async ({ getMarkdown, setMarkdown, scrollToLine, view }) =
 
 	// Setup editor sync
 	let editorSync = null
-	if (view && previewContainer) {
-		editorSync = createScrollSync(view, previewContainer, getMarkdown, scrollToLine)
-		const syncEnabled = localStorage.getItem('editor-sync-enabled') === 'true'
+	if (view && previewHtml) {
+		editorSync = createScrollSync(view, previewHtml)
+		const syncEnabled = localStorage.getItem('editor-sync-enabled') !== 'false'
 		if (syncEnabled) {
 			editorSync.enable()
 		}

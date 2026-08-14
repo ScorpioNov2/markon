@@ -1,10 +1,30 @@
 import { marked } from 'marked'
 import morphdom from 'morphdom'
-import { highlightAll } from './syntax.js'
 import { enhanceCallouts } from './callouts.js'
+import { highlightAll } from './syntax.js'
 
 marked.setOptions({ gfm: true, breaks: true })
 
+const tpl = document.createElement('template')
+
+const blockCount = token => {
+	if (token.type === 'space' || token.type === 'def') return 0
+	if (token.type !== 'html') return 1
+	tpl.innerHTML = token.raw
+	return tpl.content.children.length
+}
+
+// Annotate top-level rendered blocks with their markdown source line
+const annotateLines = (root, md) => {
+	marked.lexer(md).reduce(
+		([line, i], token) => {
+			const next = Math.min(i + blockCount(token), root.children.length)
+			for (let k = i; k < next; k++) root.children[k].dataset.line = line
+			return [line + token.raw.split('\n').length - 1, next]
+		},
+		[1, 0],
+	)
+}
 
 export const setupPreview = ({ getMarkdown, onMarkdownUpdated, previewHtml, profiler }) => {
 	let renderScheduled = false
@@ -30,6 +50,7 @@ export const setupPreview = ({ getMarkdown, onMarkdownUpdated, previewHtml, prof
 		// Process callouts and highlighting on temp DOM
 		enhanceCallouts(tempDiv)
 		await highlightAll(tempDiv)
+		annotateLines(tempDiv, md)
 
 		// Use morphdom to efficiently update only changed elements
 		morphdom(previewHtml, tempDiv, {
@@ -43,7 +64,7 @@ export const setupPreview = ({ getMarkdown, onMarkdownUpdated, previewHtml, prof
 					}
 				}
 				return true
-			}
+			},
 		})
 
 		// Update last rendered content
