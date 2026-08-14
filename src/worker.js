@@ -16,7 +16,7 @@ const openDB = () => {
 		request.onerror = () => reject(request.error)
 		request.onsuccess = () => resolve(request.result)
 
-		request.onupgradeneeded = (event) => {
+		request.onupgradeneeded = event => {
 			const db = event.target.result
 			if (!db.objectStoreNames.contains(STORE_NAME)) {
 				db.createObjectStore(STORE_NAME)
@@ -25,7 +25,7 @@ const openDB = () => {
 	})
 }
 
-const saveToStorage = async (content) => {
+const saveToStorage = async content => {
 	try {
 		if (!db) db = await openDB()
 
@@ -51,7 +51,7 @@ const loadFromStorage = async () => {
 		const store = transaction.objectStore(STORE_NAME)
 		return await new Promise((resolve, reject) => {
 			const request = store.get(STORAGE_KEY)
-			request.onsuccess = () => resolve(request.result || null)
+			request.onsuccess = () => resolve(request.result ?? null)
 			request.onerror = () => reject(request.error)
 		})
 	} catch (e) {
@@ -60,7 +60,7 @@ const loadFromStorage = async () => {
 	}
 }
 
-const debouncedSave = (content) => {
+const debouncedSave = content => {
 	if (content === lastSavedContent) return
 
 	clearTimeout(debounceTimer)
@@ -73,26 +73,28 @@ const debouncedSave = (content) => {
 }
 
 // Handle messages from main thread
-self.onmessage = async (event) => {
-	const { type, content } = event.data
+self.onmessage = async event => {
+	const { type, content, close } = event.data
 
 	switch (type) {
 		case 'SAVE_CONTENT':
 			debouncedSave(content)
 			break
 
-		case 'LOAD_CONTENT':
+		case 'LOAD_CONTENT': {
 			const storedContent = await loadFromStorage()
+			if (storedContent !== null) lastSavedContent = storedContent
 			postMessage({ type: 'CONTENT_LOADED', content: storedContent })
 			break
+		}
 
 		case 'FLUSH_NOW':
 			clearTimeout(debounceTimer)
-			if (content && content !== lastSavedContent) {
+			if (content !== lastSavedContent) {
 				const success = await saveToStorage(content)
 				if (success) lastSavedContent = content
 			}
+			if (close) postMessage({ type: 'FLUSHED' })
 			break
 	}
 }
-

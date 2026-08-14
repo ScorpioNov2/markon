@@ -1,46 +1,7 @@
+import { setHlTheme } from './syntax.js'
+
 export const $ = sel => document.getElementById(sel)
 export const el = (tag, attrs = {}) => Object.assign(document.createElement(tag), attrs)
-
-const styles = `
-#toast {
-	position: fixed;
-	bottom: 60px;
-	left: 50%;
-	color: var(--accent);
-	transform: translateX(-50%);
-	background: var(--bg-light);
-	border: 2px solid var(--accent);
-	padding: 16px 24px;
-	border-radius: 16px;
-	box-shadow: 0 8px 32px var(--accent-alpha), 0 0 0 1px var(--accent-alpha);
-	backdrop-filter: blur(16px);
-	z-index: 10001;
-	max-width: 90vw;
-	white-space: nowrap;
-	opacity: 0;
-	transition: all 0.3s ease;
-	font-size: 14px;
-	font-weight: 500;
-	display: flex;
-	align-items: center;
-	gap: 8px;
-}
-
-#toast:not([hidden]) {
-	opacity: 1;
-	transform: translateX(-50%) translateY(-4px);
-}
-
-#toast iconify-icon {
-	flex-shrink: 0;
-}
-
-`
-
-const styleSheet = document.createElement('style')
-styleSheet.textContent = styles
-document.head.appendChild(styleSheet)
-
 
 export const createToast =
 	toast =>
@@ -80,7 +41,8 @@ export const copySmart = async (text, notify) => {
 	const fallback = () => {
 		const ta = el('textarea', {
 			value: text,
-			style: 'position:fixed;top:-9999px;left:-9999px;opacity:0;width:1px;height:1px;border:none;outline:none;resize:none;overflow:hidden;'
+			style:
+				'position:fixed;top:-9999px;left:-9999px;opacity:0;width:1px;height:1px;border:none;outline:none;resize:none;overflow:hidden;',
 		})
 		document.body.appendChild(ta)
 		ta.focus()
@@ -109,7 +71,7 @@ export const downloadText = (name, text) => {
 		html: 'text/html;charset=utf-8',
 		md: 'text/markdown;charset=utf-8',
 		json: 'application/json;charset=utf-8',
-		txt: 'text/plain;charset=utf-8'
+		txt: 'text/plain;charset=utf-8',
 	}
 	const mimeType = mimeTypes[extension] || 'text/plain;charset=utf-8'
 
@@ -141,7 +103,7 @@ export const openFileCSS = () =>
 		input.click()
 	})
 
-export const saveCustomThemesCSS = (cssText) => {
+export const saveCustomThemesCSS = cssText => {
 	localStorage.setItem('custom-themes-css', cssText)
 	injectCustomThemesCSS()
 }
@@ -172,26 +134,20 @@ export const removeCustomThemesCSS = () => {
 	if (existing) existing.remove()
 }
 
-
-
 export const extractThemesFromCSS = () => {
 	const themesSheet = findThemesSheet()
 	if (!themesSheet) return []
 
 	const themeNames = extractThemeNames(themesSheet)
-	return themeNames.map(name => ({ id: name, colors: getThemeColors(name) }))
-		.filter(theme => theme.colors.length > 0)
+	return themeNames.map(name => ({ id: name, colors: getThemeColors(name) })).filter(theme => theme.colors.length > 0)
 }
 
 const findThemesSheet = () =>
-	Array.from(document.styleSheets).find(sheet =>
-		sheet.href?.includes('themes.css') ||
-		hasThemeRules(sheet))
+	Array.from(document.styleSheets).find(sheet => sheet.href?.includes('themes.css') || hasThemeRules(sheet))
 
 const hasThemeRules = sheet => {
 	try {
-		return Array.from(sheet.cssRules).some(rule =>
-			rule.selectorText?.includes('[data-theme="panda"]'))
+		return Array.from(sheet.cssRules).some(rule => rule.selectorText?.includes('[data-theme="panda"]'))
 	} catch {
 		return false
 	}
@@ -199,10 +155,14 @@ const hasThemeRules = sheet => {
 
 const extractThemeNames = sheet => {
 	try {
-		return [...new Set(Array.from(sheet.cssRules)
-			.filter(rule => rule.selectorText?.includes('[data-theme='))
-			.map(rule => rule.selectorText.match(/\[data-theme="([^"]+)"/)?.[1])
-			.filter(Boolean))]
+		return [
+			...new Set(
+				Array.from(sheet.cssRules)
+					.filter(rule => rule.selectorText?.includes('[data-theme='))
+					.map(rule => rule.selectorText.match(/\[data-theme="([^"]+)"/)?.[1])
+					.filter(Boolean),
+			),
+		]
 	} catch {
 		return []
 	}
@@ -213,8 +173,9 @@ const getThemeColors = themeName => {
 	if (!themesSheet) return []
 
 	try {
-		const themeRule = Array.from(themesSheet.cssRules)
-			.find(rule => rule.selectorText?.includes(`[data-theme="${themeName}"][data-mode="dark"]`))
+		const themeRule = Array.from(themesSheet.cssRules).find(rule =>
+			rule.selectorText?.includes(`[data-theme="${themeName}"][data-mode="dark"]`),
+		)
 
 		if (!themeRule) return []
 
@@ -226,11 +187,13 @@ const getThemeColors = themeName => {
 	}
 }
 
-
 export const getPrefTheme = () => {
 	const params = new URLSearchParams(window.location.search)
 	const theme = params.get('theme') || localStorage.getItem('theme-name') || 'github'
-	const mode = params.get('mode') || localStorage.getItem('theme-mode') || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')
+	const mode =
+		params.get('mode') ||
+		localStorage.getItem('theme-mode') ||
+		(window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')
 
 	return { theme, mode }
 }
@@ -241,7 +204,7 @@ const updateThemeColor = () => {
 	if (meta && brandColor) meta.setAttribute('content', brandColor)
 }
 
-export const applyTheme = async (themeName, mode) => {
+export const applyTheme = (themeName, mode) => {
 	const validTheme = themeName && themeName !== 'undefined' ? themeName : 'github'
 	const validMode = mode && mode !== 'undefined' ? mode : 'dark'
 
@@ -252,7 +215,6 @@ export const applyTheme = async (themeName, mode) => {
 	localStorage.setItem('theme-name', validTheme)
 	localStorage.setItem('theme-mode', validMode)
 
-	const { setHlTheme } = await import('./syntax.js')
 	setHlTheme(validMode)
 
 	updateThemeColor()
@@ -262,12 +224,9 @@ export const applySpell = (on = document.querySelector('#toggle-spell')?.getAttr
 	document.querySelector('.cm-content')?.setAttribute('spellcheck', String(on))
 }
 
-
 export const createElement = (tag, attributes = {}, children = []) => {
 	const element = Object.assign(document.createElement(tag), attributes)
-	children.forEach(child => {
-		element.appendChild(child)
-	})
+	for (const child of children) element.appendChild(child)
 	return element
 }
 
@@ -278,4 +237,3 @@ export const createEventHandler = (element, event, handler, options = {}) => {
 
 export const createClickHandler = (element, handler) => createEventHandler(element, 'click', handler)
 export const createPointerHandler = (element, handler) => createEventHandler(element, 'pointerdown', handler)
-

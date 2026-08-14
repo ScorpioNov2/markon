@@ -26,22 +26,18 @@ const annotateLines = (root, md) => {
 	)
 }
 
-export const setupPreview = ({ getMarkdown, onMarkdownUpdated, previewHtml, profiler }) => {
+export const setupPreview = ({ getMarkdown, onMarkdownUpdated, onRendered, previewHtml }) => {
 	let renderScheduled = false
 	let debounceTimer = null
+	let renderFrame = null
+	let revision = 0
 	let lastRenderedContent = ''
 
-	const render = async () => {
+	const render = async version => {
 		const md = getMarkdown()
 
 		// Skip render if content hasn't changed
-		if (md === lastRenderedContent) {
-			profiler?.markRenderComplete()
-			return
-		}
-
-		// Mark when actual rendering starts (after debouncing)
-		profiler?.markRenderStart()
+		if (md === lastRenderedContent) return
 
 		// Create temporary container with new content
 		const tempDiv = document.createElement('div')
@@ -50,6 +46,7 @@ export const setupPreview = ({ getMarkdown, onMarkdownUpdated, previewHtml, prof
 		// Process callouts and highlighting on temp DOM
 		enhanceCallouts(tempDiv)
 		await highlightAll(tempDiv)
+		if (version !== revision) return
 		annotateLines(tempDiv, md)
 
 		// Use morphdom to efficiently update only changed elements
@@ -69,16 +66,11 @@ export const setupPreview = ({ getMarkdown, onMarkdownUpdated, previewHtml, prof
 
 		// Update last rendered content
 		lastRenderedContent = md
-
-		// Wait for actual paint to complete - this captures the real rendering time
-		requestAnimationFrame(() => {
-			requestAnimationFrame(() => {
-				profiler?.markRenderComplete()
-			})
-		})
+		onRendered?.()
 	}
 
 	const scheduleRender = () => {
+		revision += 1
 		if (renderScheduled) return
 		renderScheduled = true
 
@@ -87,14 +79,21 @@ export const setupPreview = ({ getMarkdown, onMarkdownUpdated, previewHtml, prof
 
 		// Debounce rapid changes
 		debounceTimer = setTimeout(() => {
-			requestAnimationFrame(async () => {
+			renderFrame = requestAnimationFrame(async () => {
 				renderScheduled = false
-				await render()
+				await render(revision)
 			})
 		}, 50) // 50ms debounce for smooth typing
 	}
 
 	// Initial render
 	scheduleRender()
-	onMarkdownUpdated(scheduleRender)
+	const unsubscribe = onMarkdownUpdated(scheduleRender)
+
+	return () => {
+		revision += 1
+		clearTimeout(debounceTimer)
+		cancelAnimationFrame(renderFrame)
+		unsubscribe()
+	}
 }

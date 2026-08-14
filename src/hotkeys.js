@@ -1,9 +1,7 @@
-import { HOTKEYS } from './settings.js'
-import { getActionHandlers } from './actions.js'
-import { $ } from './utils.js'
+import { HOTKEYS } from './actions.js'
 
 // Key event handler
-export const createKeyHandler = settingsDialog => e => {
+export const createKeyHandler = runAction => e => {
 	// Allow hotkeys to work even when editor is focused
 	// Only skip if it's a regular input/textarea (not CodeMirror)
 	if (e.target.matches('input:not([data-cm-editor]), textarea:not([data-cm-editor])')) return
@@ -25,34 +23,13 @@ export const createKeyHandler = settingsDialog => e => {
 	if (hotkey) {
 		e.preventDefault()
 		const [, , targetId] = hotkey
-
-		// Special handling for settings
-		if (targetId === 'settings') {
-			settingsDialog.show()
-			return
-		}
-
-		// Special handling for toggle-preview
-		if (targetId === 'preview-toggle' && window.previewManager) {
-			window.previewManager.toggle()
-			return
-		}
-
-		// Special handling for toggle-editor-sync (button may not exist in DOM)
-		if (targetId === 'toggle-editor-sync') {
-			const handlers = getActionHandlers()
-			const handler = handlers[targetId]
-			if (handler && window.showToast) {
-				handler(window.showToast)
-			}
-			return
-		}
-
-		$(targetId)?.click()
+		runAction(targetId)
 	}
 }
 
 // Setup hotkeys
-export const setupHotkeys = settingsDialog => {
-	window.addEventListener('keydown', createKeyHandler(settingsDialog), true)
+export const setupHotkeys = runAction => {
+	const handler = createKeyHandler(runAction)
+	window.addEventListener('keydown', handler, true)
+	return () => window.removeEventListener('keydown', handler, true)
 }

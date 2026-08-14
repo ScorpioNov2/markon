@@ -1,8 +1,5 @@
-// Web Worker-based storage - moves localStorage operations off main thread
-let storageWorker = null
-let isWorkerReady = false
-
-const createStorageWorker = () => {
+// Web Worker-based storage - moves IndexedDB operations off main thread
+const createStorageWorker = setMarkdown => {
 	if (!window.Worker) {
 		console.warn('Web Workers not supported, falling back to main thread storage')
 		return null
@@ -11,20 +8,20 @@ const createStorageWorker = () => {
 	try {
 		const worker = new Worker(new URL('./worker.js', import.meta.url))
 
-		worker.onmessage = (event) => {
+		worker.onmessage = event => {
 			const { type, content } = event.data
 
 			switch (type) {
 				case 'CONTENT_LOADED':
-					// Worker loaded content from IndexedDB
-					if (content) {
-						window.setMarkdown?.(content)
-					}
+					if (content !== null) setMarkdown(content)
+					break
+				case 'FLUSHED':
+					worker.terminate()
 					break
 			}
 		}
 
-		worker.onerror = (error) => {
+		worker.onerror = error => {
 			console.error('Storage worker error:', error)
 		}
 
@@ -35,62 +32,34 @@ const createStorageWorker = () => {
 	}
 }
 
-const loadFromStorage = () => {
-	if (storageWorker && isWorkerReady) {
-		storageWorker.postMessage({ type: 'LOAD_CONTENT' })
-		return null // Content will be set via worker message
-	}
-
-	// No fallback - IndexedDB only
-	console.warn('Storage worker not available')
-	return null
-}
-
-export const createStorage = ({ onMarkdownUpdated, initialContent = '' }) => {
-	// Initialize worker
-	storageWorker = createStorageWorker()
-
-	if (storageWorker) {
-		isWorkerReady = true
-	}
+export const createStorage = ({ getMarkdown, onMarkdownUpdated, setMarkdown }) => {
+	const worker = createStorageWorker(setMarkdown)
 
 	const cleanup = () => {
-		if (storageWorker) {
-			storageWorker.terminate()
-			storageWorker = null
-			isWorkerReady = false
-		}
+		unsubscribe()
 		window.removeEventListener('beforeunload', handleBeforeUnload)
 		document.removeEventListener('visibilitychange', handleVisibilityChange)
+		worker?.postMessage({ type: 'FLUSH_NOW', content: getMarkdown(), close: true })
 	}
 
 	const handleBeforeUnload = () => {
-		if (storageWorker && isWorkerReady) {
-			const content = window.getMarkdown?.() || ''
-			storageWorker.postMessage({ type: 'FLUSH_NOW', content })
-		}
+		worker?.postMessage({ type: 'FLUSH_NOW', content: getMarkdown() })
 	}
 
 	const handleVisibilityChange = () => {
-		if (document.visibilityState === 'hidden' && storageWorker && isWorkerReady) {
-			const content = window.getMarkdown?.() || ''
-			storageWorker.postMessage({ type: 'FLUSH_NOW', content })
-		}
+		if (document.visibilityState !== 'hidden') return
+		worker?.postMessage({ type: 'FLUSH_NOW', content: getMarkdown() })
 	}
 
-	const debouncedSave = (content) => {
-		if (storageWorker && isWorkerReady) {
-			storageWorker.postMessage({ type: 'SAVE_CONTENT', content })
-		} else {
-			// No fallback - IndexedDB only
-			console.warn('Storage worker not available, cannot save')
-		}
+	const save = content => {
+		if (worker) return worker.postMessage({ type: 'SAVE_CONTENT', content })
+		console.warn('Storage worker not available, cannot save')
 	}
 
-	// Set up event listeners
-	onMarkdownUpdated(debouncedSave)
+	const unsubscribe = onMarkdownUpdated(save)
 	window.addEventListener('beforeunload', handleBeforeUnload)
 	document.addEventListener('visibilitychange', handleVisibilityChange)
 
-	return { load: loadFromStorage, cleanup }
+	const load = () => worker?.postMessage({ type: 'LOAD_CONTENT' })
+	return { load, cleanup }
 }

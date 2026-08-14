@@ -10,11 +10,11 @@ import tablerIcons from '@iconify-json/tabler/icons.json' with { type: 'json' }
 import './style.css'
 import './components.css'
 import './themes.css'
+import { updatePWAUI } from './actions.js'
 import { createEditor } from './core.js'
 import { setupPreview } from './preview.js'
 import { initUI } from './ui.js'
 import { injectCustomThemesCSS } from './utils.js'
-import { updatePWAUI } from './actions.js'
 
 const boot = async () => {
 	injectCustomThemesCSS()
@@ -22,23 +22,50 @@ const boot = async () => {
 	// Configure iconify to use local Tabler icons instead of API
 	// Wait for iconify-icon to be ready, then add the collection
 	const addTablerIcons = () => {
-		if (window.Iconify && window.Iconify.addCollection) {
-			window.Iconify.addCollection(tablerIcons)
-		} else if (window.customElements && window.customElements.get('iconify-icon')) {
-			const iconifyIcon = window.customElements.get('iconify-icon')
-			if (iconifyIcon.addCollection) {
-				iconifyIcon.addCollection(tablerIcons)
-			}
-		}
+		if (window.Iconify?.addCollection) return window.Iconify.addCollection(tablerIcons)
+		window.customElements?.get('iconify-icon')?.addCollection?.(tablerIcons)
 	}
 
 	// Try immediately and also when DOM is ready
 	addTablerIcons()
 	document.addEventListener('DOMContentLoaded', addTablerIcons)
 
-	const { getMarkdown, setMarkdown, onMarkdownUpdated, cleanup, profiler, scrollToLine, view } = await createEditor()
-	const { previewHtml } = await initUI({ getMarkdown, setMarkdown, scrollToLine, view })
-	setupPreview({ getMarkdown, onMarkdownUpdated, previewHtml, profiler })
+	const {
+		getMarkdown,
+		setMarkdown,
+		onMarkdownUpdated,
+		cleanup: cleanupEditor,
+		profiler,
+		scrollToLine,
+		view,
+	} = await createEditor()
+	const {
+		cleanup: cleanupUI,
+		onPreviewRendered,
+		previewHtml,
+	} = await initUI({
+		getMarkdown,
+		setMarkdown,
+		scrollToLine,
+		profiler,
+		view,
+	})
+	const cleanupPreview = setupPreview({
+		getMarkdown,
+		onMarkdownUpdated,
+		onRendered: onPreviewRendered,
+		previewHtml,
+	})
+	const cleanup = () => {
+		window.removeEventListener('pagehide', onPageHide)
+		cleanupPreview()
+		cleanupUI?.()
+		cleanupEditor()
+	}
+	const onPageHide = event => {
+		if (!event.persisted) cleanup()
+	}
+	window.addEventListener('pagehide', onPageHide)
 
 	// Handle PWA install prompt - setup after UI is initialized
 	window.addEventListener('beforeinstallprompt', event => {
@@ -59,14 +86,8 @@ const boot = async () => {
 		updatePWAUI()
 	})
 
-	// Update PWA UI on initial load (check if already installed)
-	updatePWAUI()
-
 	// Expose profiler globally for console inspection
 	window.__MARKON_PERF__ = profiler
-
-	// Cleanup storage on page unload
-	window.addEventListener('beforeunload', cleanup)
 }
 
 boot()

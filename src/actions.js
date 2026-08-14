@@ -8,6 +8,12 @@ import {
 	openFileText,
 } from './utils.js'
 
+export const setPressed = (id, pressed) => {
+	for (const button of document.querySelectorAll(`[data-action="${id}"]`)) {
+		button.setAttribute('aria-pressed', String(pressed))
+	}
+}
+
 // Check if PWA is installed (running in standalone mode)
 const isPWAInstalled = () => {
 	if (window.matchMedia('(display-mode: standalone)').matches) return true
@@ -26,9 +32,9 @@ export const updatePWAInstallButton = () => {
 }
 
 // Update both PWA UI elements
-export const updatePWAUI = () => {
+export const updatePWAUI = runAction => {
 	updatePWAInstallButton()
-	updatePWAInstallBanner()
+	updatePWAInstallBanner(runAction)
 }
 
 // Shared PWA install handler
@@ -53,7 +59,7 @@ const handlePWAInstall = async showToast => {
 }
 
 // Create PWA install banner
-const createPWAInstallBanner = () => {
+const createPWAInstallBanner = runAction => {
 	const banner = createElement('div', {
 		id: 'pwa-install-banner',
 		hidden: true,
@@ -85,7 +91,7 @@ const createPWAInstallBanner = () => {
 	banner.appendChild(installBtn)
 	banner.appendChild(dismissBtn)
 
-	createClickHandler(installBtn, () => handlePWAInstall(window.showToast))
+	createClickHandler(installBtn, () => runAction?.('install-pwa'))
 
 	createClickHandler(dismissBtn, () => {
 		localStorage.setItem('pwa-banner-dismissed', 'true')
@@ -97,10 +103,10 @@ const createPWAInstallBanner = () => {
 }
 
 // Update PWA install banner visibility
-export const updatePWAInstallBanner = () => {
+export const updatePWAInstallBanner = runAction => {
 	let banner = document.getElementById('pwa-install-banner')
 	if (!banner) {
-		banner = createPWAInstallBanner()
+		banner = createPWAInstallBanner(runAction)
 	}
 
 	const isInstalled = isPWAInstalled()
@@ -122,10 +128,11 @@ const ACTIONS_CONFIG = [
 		label: 'Save',
 		icon: 'tabler:device-floppy',
 		hotkey: 'ctrl+s',
+		settingsLabel: 'Save',
 		gradient: 'linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(251, 191, 36, 0.2))',
 		showInToolbar: true,
-		handler: async showToast => {
-			const text = await window.getMarkdown?.()
+		handler: async ({ getMarkdown, showToast }) => {
+			const text = await getMarkdown()
 			if (text) {
 				const name = prompt('filename:', 'document.md') || 'document.md'
 				downloadText(name, text)
@@ -138,12 +145,13 @@ const ACTIONS_CONFIG = [
 		label: 'Open',
 		icon: 'tabler:folder-open',
 		hotkey: 'ctrl+o',
+		settingsLabel: 'Load',
 		gradient: 'linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(147, 51, 234, 0.2))',
 		showInToolbar: true,
-		handler: async showToast => {
+		handler: async ({ setMarkdown, showToast }) => {
 			const text = await openFileText()
 			if (text) {
-				window.setMarkdown?.(text)
+				setMarkdown(text)
 				showToast('opened', 1200, 'tabler:check')
 			}
 		},
@@ -153,14 +161,14 @@ const ACTIONS_CONFIG = [
 		label: 'Spell',
 		icon: 'tabler:text-spellcheck',
 		hotkey: 'ctrl+k',
+		settingsLabel: 'Toggle',
 		gradient: 'linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(147, 51, 234, 0.2))',
 		showInToolbar: false,
-		handler: showToast => {
-			const btn = document.getElementById('toggle-spell')
-			const pressed = btn?.getAttribute('aria-pressed') === 'true'
-			btn?.setAttribute('aria-pressed', String(!pressed))
-			applySpell(!pressed)
-			showToast(`spell: ${!pressed ? 'on' : 'off'}`, 1200, 'tabler:file-text')
+		handler: ({ showToast }) => {
+			const enabled = document.querySelector('[data-action="toggle-spell"]')?.getAttribute('aria-pressed') !== 'true'
+			setPressed('toggle-spell', enabled)
+			applySpell(enabled)
+			showToast(`spell: ${enabled ? 'on' : 'off'}`, 1200, 'tabler:file-text')
 		},
 		isToggle: true,
 	},
@@ -169,30 +177,30 @@ const ACTIONS_CONFIG = [
 		label: 'Install',
 		icon: 'tabler:square-rounded-chevrons-down',
 		hotkey: '',
+		showInSettings: false,
 		gradient: 'linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.2))',
 		showInToolbar: true,
-		handler: showToast => handlePWAInstall(showToast),
+		handler: ({ showToast }) => handlePWAInstall(showToast),
 	},
 	{
 		id: 'settings',
 		label: 'Settings',
 		icon: 'tabler:settings-2',
 		hotkey: 'ctrl+/',
+		settingsLabel: 'Run',
 		gradient: 'linear-gradient(135deg, rgba(107, 114, 128, 0.2), rgba(75, 85, 99, 0.2))',
 		showInToolbar: true,
-		handler: showToast => {
-			// This will be handled by the settings dialog creation
-			document.getElementById('settings')?.click()
-		},
+		handler: ({ settingsDialog }) => settingsDialog.show(),
 	},
 	{
 		id: 'toggle-theme',
 		label: 'Theme',
 		icon: 'tabler:sun-electricity',
 		hotkey: 'ctrl+m',
+		settingsLabel: 'Toggle',
 		gradient: 'linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(251, 191, 36, 0.2))',
 		showInToolbar: true,
-		handler: async showToast => {
+		handler: async ({ showToast }) => {
 			const current = document.documentElement.getAttribute('data-mode') || 'dark'
 			const next = current === 'light' ? 'dark' : 'light'
 			const theme = document.documentElement.getAttribute('data-theme') || 'github'
@@ -207,10 +215,11 @@ const ACTIONS_CONFIG = [
 		label: 'Copy',
 		icon: 'tabler:copy',
 		hotkey: 'ctrl+shift+c',
+		settingsLabel: 'Run',
 		gradient: 'linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(16, 185, 129, 0.2))',
 		showInToolbar: false,
-		handler: async showToast => {
-			const text = await window.getMarkdown?.()
+		handler: async ({ getMarkdown, showToast }) => {
+			const text = await getMarkdown()
 			if (text) {
 				await copySmart(text, showToast)
 			}
@@ -221,16 +230,17 @@ const ACTIONS_CONFIG = [
 		label: 'Paste',
 		icon: 'tabler:clipboard-text-filled',
 		hotkey: 'ctrl+shift+v',
+		settingsLabel: 'Load',
 		gradient: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(37, 99, 235, 0.2))',
 		showInToolbar: false,
-		handler: async showToast => {
-			const text = await window.readClipboardSmart?.()
+		handler: async ({ readClipboardSmart, setMarkdown, showToast }) => {
+			const text = await readClipboardSmart()
 			if (text) {
 				const lines = text.split('\n')
 				const minLines = 5
 				const paddingLines = lines.length < minLines ? 3 : 0
 				const paddedText = paddingLines > 0 ? '\n'.repeat(paddingLines) + text : text
-				window.setMarkdown?.(paddedText)
+				setMarkdown(paddedText)
 				showToast('pasted', 1200, 'tabler:clipboard-check')
 			} else {
 				showToast('clipboard empty', 1200, 'tabler:alert-circle')
@@ -242,21 +252,15 @@ const ACTIONS_CONFIG = [
 		label: 'Sync',
 		icon: 'tabler:arrow-autofit-height-filled',
 		hotkey: 'ctrl+b',
+		settingsLabel: 'Toggle',
 		gradient: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(147, 51, 234, 0.2))',
 		showInToolbar: false,
-		handler: showToast => {
+		handler: ({ editorSync, showToast }) => {
 			const currentState = localStorage.getItem('editor-sync-enabled') !== 'false'
 			const enabled = !currentState
 			localStorage.setItem('editor-sync-enabled', String(enabled))
-
-			const btn = document.getElementById('toggle-editor-sync')
-			if (btn) {
-				btn.setAttribute('aria-pressed', String(enabled))
-			}
-
-			if (window.editorSync) {
-				enabled ? window.editorSync.enable() : window.editorSync.disable()
-			}
+			setPressed('toggle-editor-sync', enabled)
+			enabled ? editorSync?.enable() : editorSync?.disable()
 			showToast(`sync: ${enabled ? 'on' : 'off'}`, 1200, 'tabler:arrow-autofit-height-filled')
 		},
 		isToggle: true,
@@ -266,23 +270,31 @@ const ACTIONS_CONFIG = [
 		label: 'Profiler',
 		icon: 'tabler:gauge-filled',
 		hotkey: '',
+		hideSettingsLabel: true,
+		settingsLabel: 'Toggle',
 		gradient: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(147, 51, 234, 0.2))',
 		showInToolbar: false,
-		handler: showToast => {
-			const profiler = window.__MARKON_PERF__
-			if (profiler) {
-				profiler.toggle()
-				const isVisible = profiler.isVisible
-				showToast(`profiler: ${isVisible ? 'on' : 'off'}`, 1200, 'tabler:gauge')
-			}
+		handler: ({ profiler, showToast }) => {
+			if (!profiler) return
+			profiler.toggle()
+			setPressed('toggle-profiler', profiler.isVisible)
+			showToast(`profiler: ${profiler.isVisible ? 'on' : 'off'}`, 1200, 'tabler:gauge')
 		},
 		isToggle: true,
+	},
+	{
+		id: 'preview-toggle',
+		label: 'Toggle preview',
+		hotkey: 'ctrl+p',
+		showInSettings: false,
+		handler: ({ previewManager }) => previewManager.toggle(),
 	},
 	{
 		id: 'github',
 		label: 'GitHub',
 		icon: 'tabler:brand-github-filled',
 		hotkey: '',
+		showInSettings: false,
 		gradient: 'linear-gradient(135deg, rgba(107, 114, 128, 0.2), rgba(75, 85, 99, 0.2))',
 		showInToolbar: false,
 		handler: () => {
@@ -292,14 +304,15 @@ const ACTIONS_CONFIG = [
 ]
 
 // Button factory - functional approach with popover
-const createButton = (config, showToast) => {
-	const { id, label, icon, handler, isToggle, hotkey } = config
+const createButton = (config, runAction) => {
+	const { id, label, icon, isToggle, hotkey } = config
 
 	const btn = createElement('button', {
 		id,
 		...(isToggle && { 'aria-pressed': 'false' }),
 		className: isToggle ? 'toggle' : '',
 	})
+	btn.dataset.action = id
 
 	const iconEl = createElement('iconify-icon', { icon, width: '32' })
 	btn.appendChild(iconEl)
@@ -310,40 +323,32 @@ const createButton = (config, showToast) => {
 	const span = createElement('span', { textContent: popoverText })
 	btn.appendChild(span)
 
-	createClickHandler(btn, () => handler(showToast))
+	createClickHandler(btn, () => runAction(id))
 
 	return btn
 }
 
 // Derive arrays for different uses
 export const SETTINGS_ACTIONS = ACTIONS_CONFIG
-export const HOTKEYS = ACTIONS_CONFIG.filter(a => a.hotkey)
-	.map(a => [a.hotkey, a.label, a.id])
-	.concat([['ctrl+p', 'Toggle preview', 'preview-toggle']])
+export const HOTKEYS = ACTIONS_CONFIG.filter(action => action.hotkey).map(action => [
+	action.hotkey,
+	action.label,
+	action.id,
+])
 
 // Create all buttons
-export const createButtons = (showToast, settingsDialog) => {
+export const createButtons = runAction => {
 	const actions = document.getElementById('actions')
 	ACTIONS_CONFIG.filter(a => a.showInToolbar).forEach(config => {
-		const btn = createButton(config, showToast)
-
-		// Special handling for settings button
-		if (config.id === 'settings') {
-			createClickHandler(btn, () => settingsDialog.show())
-		}
-
+		const btn = createButton(config, runAction)
 		actions.appendChild(btn)
 	})
 
 	// Initialize PWA UI (always check, even if installed)
-	updatePWAUI()
+	updatePWAUI(runAction)
 }
 
 // Export action handlers for reuse in settings
-export const getActionHandlers = () => {
-	const handlers = {}
-	ACTIONS_CONFIG.forEach(config => {
-		handlers[config.id] = config.handler
-	})
-	return handlers
-}
+const ACTIONS = Object.fromEntries(ACTIONS_CONFIG.map(action => [action.id, action]))
+
+export const createActionRunner = context => id => ACTIONS[id]?.handler(context)

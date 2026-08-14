@@ -1,67 +1,45 @@
 const STORAGE_KEY = 'markon-profiler-visible'
-const BUFFER_SIZE = 20
+const SAMPLE_MS = 500
 
-class LatencyProfiler {
+class FpsProfiler {
 	constructor() {
-		this.inputStartTime = null
-		this.renderStartTime = null
-		this.measurements = []
 		this.overlay = null
 		this.isVisible = localStorage.getItem(STORAGE_KEY) === 'true'
+		this.fps = 0
+		this.frames = 0
+		this.sampleStart = 0
+		this.rafId = null
 		this.initOverlay()
 	}
 
-	markInputStart() {
-		this.inputStartTime = performance.now()
-	}
-
-	markRenderStart() {
-		this.renderStartTime = performance.now()
-	}
-
-	markRenderComplete() {
-		if (!this.renderStartTime) return
-
-		const renderLatency = performance.now() - this.renderStartTime
-		this.addMeasurement(renderLatency)
-		this.updateOverlay()
-		this.renderStartTime = null
-		this.inputStartTime = null
-	}
-
-	// Get total time from input to render completion (including debouncing)
-	getTotalLatency() {
-		if (!this.inputStartTime) return null
-		return performance.now() - this.inputStartTime
-	}
-
-	addMeasurement(latency) {
-		this.measurements.push(latency)
-		if (this.measurements.length > BUFFER_SIZE) {
-			this.measurements.shift()
+	tick = now => {
+		this.frames++
+		const elapsed = now - this.sampleStart
+		if (elapsed >= SAMPLE_MS) {
+			this.fps = Math.round((this.frames * 1000) / elapsed)
+			this.updateOverlay()
+			this.frames = 0
+			this.sampleStart = now
 		}
+		this.rafId = requestAnimationFrame(this.tick)
 	}
 
 	updateOverlay() {
-		if (!this.overlay || !this.isVisible) return
+		if (!this.overlay) return
 
-		const latest = this.measurements[this.measurements.length - 1]
-		if (!latest) return
-
-		const ms = Math.round(latest)
-		this.overlay.textContent = `${ms}ms`
+		this.overlay.textContent = `${this.fps}fps`
 
 		// Color coding
 		this.overlay.className = 'profiler-overlay'
-		if (ms < 16) this.overlay.classList.add('good')
-		else if (ms < 33) this.overlay.classList.add('ok')
+		if (this.fps >= 50) this.overlay.classList.add('good')
+		else if (this.fps >= 30) this.overlay.classList.add('ok')
 		else this.overlay.classList.add('bad')
 	}
 
 	initOverlay() {
 		this.overlay = document.createElement('div')
 		this.overlay.className = 'profiler-overlay'
-		this.overlay.textContent = '0ms'
+		this.overlay.textContent = '0fps'
 		document.body.appendChild(this.overlay)
 
 		this.toggle(this.isVisible)
@@ -71,23 +49,16 @@ class LatencyProfiler {
 		const shouldShow = force !== null ? force : !this.isVisible
 		this.isVisible = shouldShow
 		this.overlay.style.display = shouldShow ? 'block' : 'none'
-		localStorage.setItem(STORAGE_KEY, String(shouldShow))
-	}
 
-	getMetrics() {
-		const totalLatency = this.getTotalLatency()
-		return {
-			renderTime: {
-				latest: this.measurements[this.measurements.length - 1] || 0,
-				average: this.measurements.length ?
-					this.measurements.reduce((a, b) => a + b, 0) / this.measurements.length : 0,
-				count: this.measurements.length,
-				all: [...this.measurements]
-			},
-			totalLatency: totalLatency,
-			debounceTime: totalLatency ? totalLatency - (this.measurements[this.measurements.length - 1] || 0) : null
+		cancelAnimationFrame(this.rafId)
+		if (shouldShow) {
+			this.frames = 0
+			this.sampleStart = performance.now()
+			this.rafId = requestAnimationFrame(this.tick)
 		}
+
+		localStorage.setItem(STORAGE_KEY, String(shouldShow))
 	}
 }
 
-export const createProfiler = () => new LatencyProfiler()
+export const createProfiler = () => new FpsProfiler()

@@ -1,15 +1,15 @@
-import { createButtons } from './actions.js'
-import { createSettingsDialog } from './settings.js'
-import { observeTheme } from './syntax.js'
+import { createActionRunner, createButtons } from './actions.js'
 import { setupHotkeys } from './hotkeys.js'
 import { createPreviewManager, createResizeHandler } from './resize.js'
-import createToolbar from './toolbar.js'
-import { createTOC } from './toc.js'
+import { createSettingsDialog } from './settings.js'
 import { createScrollSync } from './sync.js'
-import { applyTheme, createPointerHandler, createToast, getPrefTheme } from './utils.js'
+import { observeTheme } from './syntax.js'
+import { createTOC } from './toc.js'
+import createToolbar from './toolbar.js'
+import { applyTheme, createPointerHandler, createToast, getPrefTheme, readClipboardSmart } from './utils.js'
 
 // Initialize UI components
-export const initUI = async ({ getMarkdown, setMarkdown, scrollToLine, view }) => {
+export const initUI = async ({ getMarkdown, setMarkdown, scrollToLine, profiler, view }) => {
 	// Setup toast
 	const toast = document.getElementById('toast')
 	const showToast = createToast(toast)
@@ -17,15 +17,6 @@ export const initUI = async ({ getMarkdown, setMarkdown, scrollToLine, view }) =
 	// Setup theme
 	const { theme, mode } = getPrefTheme()
 	await applyTheme(theme, mode)
-
-	// Setup settings system
-	const settingsDialog = createSettingsDialog(showToast)
-
-	// Setup all buttons (including settings)
-	createButtons(showToast, settingsDialog)
-
-	// Setup hotkeys
-	setupHotkeys(settingsDialog)
 
 	// Setup theme observer
 	observeTheme()
@@ -38,8 +29,10 @@ export const initUI = async ({ getMarkdown, setMarkdown, scrollToLine, view }) =
 	const resizeHandle = document.getElementById('resize-handle')
 	const previewAside = document.getElementById('preview')
 	const wrap = document.getElementById('wrap')
-	createPointerHandler(split, createResizeHandler(split, previewAside, wrap, previewManager))
-	createPointerHandler(resizeHandle, createResizeHandler(split, previewAside, wrap, previewManager))
+	const cleanupResize = [
+		createPointerHandler(split, createResizeHandler(split, previewAside, wrap, previewManager)),
+		createPointerHandler(resizeHandle, createResizeHandler(split, previewAside, wrap, previewManager)),
+	]
 
 	// Setup toolbar with auto-hide behavior
 	createToolbar()
@@ -47,35 +40,37 @@ export const initUI = async ({ getMarkdown, setMarkdown, scrollToLine, view }) =
 	// Setup TOC
 	const previewHtml = document.getElementById('previewhtml')
 	const previewContainer = document.getElementById('preview')
-	if (previewHtml && previewContainer) {
-		createTOC(previewHtml, previewContainer, { getMarkdown, scrollToLine })
-	}
+	const toc =
+		previewHtml && previewContainer ? createTOC(previewHtml, previewContainer, { getMarkdown, scrollToLine }) : null
 
 	// Setup editor sync
 	let editorSync = null
 	if (view && previewHtml) {
 		editorSync = createScrollSync(view, previewHtml)
-		const syncEnabled = localStorage.getItem('editor-sync-enabled') !== 'false'
-		if (syncEnabled) {
-			editorSync.enable()
-		}
-		const btn = document.getElementById('toggle-editor-sync')
-		if (btn) {
-			btn.setAttribute('aria-pressed', String(syncEnabled))
-		}
+		if (localStorage.getItem('editor-sync-enabled') !== 'false') editorSync.enable()
 	}
 
-	// Expose markdown functions globally for button access
-	window.getMarkdown = getMarkdown
-	window.setMarkdown = setMarkdown
-	window.previewManager = previewManager
-	window.showToast = showToast
-	window.editorSync = editorSync
-	window.readClipboardSmart = async () => {
-		const { readClipboardSmart } = await import('./utils.js')
-		return readClipboardSmart()
-	}
+	// Bind every action to the same application context
+	const settingsDialog = createSettingsDialog(id => runAction(id))
+	const runAction = createActionRunner({
+		editorSync,
+		getMarkdown,
+		previewManager,
+		profiler,
+		readClipboardSmart,
+		setMarkdown,
+		settingsDialog,
+		showToast,
+	})
+	createButtons(runAction)
+	const cleanupHotkeys = setupHotkeys(runAction)
 
-	// Return preview HTML element for preview module
-	return { previewHtml: document.getElementById('previewhtml') }
+	// Return preview hooks for explicit composition
+	const cleanup = () => {
+		cleanupHotkeys()
+		editorSync?.disable()
+		toc?.cleanup()
+		for (const remove of cleanupResize) remove()
+	}
+	return { cleanup, onPreviewRendered: toc?.update, previewHtml }
 }

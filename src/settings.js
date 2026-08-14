@@ -1,21 +1,9 @@
-import {
-	createClickHandler,
-	createElement,
-	applyTheme,
-	getPrefTheme,
-	extractThemesFromCSS,
-	saveCustomThemesCSS,
-	clearCustomThemesCSS,
-	openFileCSS,
-	downloadText,
-	copySmart,
-	openFileText,
-} from './utils.js'
-import { getActionHandlers, SETTINGS_ACTIONS, HOTKEYS } from './actions.js'
 import pkg from '../package.json'
+import { SETTINGS_ACTIONS, setPressed } from './actions.js'
+import { applyTheme, createClickHandler, createElement, extractThemesFromCSS, getPrefTheme } from './utils.js'
 import './settings.css'
 
-export const createSettingsDialog = showToast => {
+export const createSettingsDialog = runAction => {
 	const dialog = createElement('dialog', {
 		id: 'settings-system',
 		className: 'settings-dialog',
@@ -28,7 +16,7 @@ export const createSettingsDialog = showToast => {
 	const content = createElement('div', { className: 'settings-content' })
 
 	const themesSection = createThemesSection()
-	const actionsSection = createActionsSection(showToast)
+	const actionsSection = createActionsSection(runAction)
 
 	content.append(themesSection, actionsSection)
 
@@ -82,7 +70,9 @@ export const createSettingsDialog = showToast => {
 		if (!dialog.parentNode) {
 			document.body.appendChild(dialog)
 		}
-		dialog.showModal()
+		if (!dialog.open) dialog.showModal()
+		setPressed('toggle-editor-sync', localStorage.getItem('editor-sync-enabled') !== 'false')
+		setPressed('toggle-profiler', localStorage.getItem('markon-profiler-visible') === 'true')
 		// Highlight current theme after dialog is shown
 		const themeGrid = dialog.querySelector('.settings-theme-grid')
 		if (themeGrid) highlightCurrentTheme(themeGrid)
@@ -119,45 +109,35 @@ export const createSettingsDialog = showToast => {
 }
 
 // Create unified actions and shortcuts section
-const createActionsSection = showToast => {
+const createActionsSection = runAction => {
 	const section = createElement('div', { className: 'settings-section' })
 
 	const actionsGrid = createElement('div', {
 		className: 'settings-shortcuts',
 	})
 
-	SETTINGS_ACTIONS.filter(action => action.id !== 'install-pwa' && action.id !== 'github').forEach(
-		({ id, label, icon, hotkey, gradient, handler }) => {
+	SETTINGS_ACTIONS.filter(action => action.showInSettings !== false).forEach(
+		({ id, label, icon, hotkey, gradient, hideSettingsLabel, settingsLabel }) => {
 			const item = createElement('div', { className: 'settings-item' })
 
-			// Label (hidden for profiler)
 			const labelSpan = createElement('span', {
+				hidden: hideSettingsLabel,
 				textContent: label,
-				style: `font-weight: 500;${id === 'toggle-profiler' ? ' display: none;' : ''}`,
+				style: 'font-weight: 500;',
 			})
 
-			// Button
 			const btn = createElement('button', {
 				className: 'settings-theme-control-btn',
-				id,
-				style: `background: ${gradient}; border: none;${id === 'install-pwa' ? ' display: none;' : ''}`,
+				style: `background: ${gradient}; border: none;`,
 			})
+			btn.dataset.action = id
 			const btnIcon = createElement('iconify-icon', {
 				icon,
 				width: '32',
 				height: '32',
 			})
 			const btnText = createElement('span', {
-				textContent:
-					id === 'github'
-						? 'Open'
-						: id.includes('toggle') || id.includes('profiler')
-							? 'Toggle'
-							: id.includes('save')
-								? 'Save'
-								: id.includes('load')
-									? 'Load'
-									: 'Run',
+				textContent: settingsLabel,
 			})
 			btn.append(btnIcon, btnText)
 
@@ -165,18 +145,13 @@ const createActionsSection = showToast => {
 			const popoverSpan = createElement('span', { textContent: label })
 			btn.appendChild(popoverSpan)
 
-			createClickHandler(btn, () => handler(showToast))
+			createClickHandler(btn, () => runAction(id))
 
-			// Hotkey badge (only show if hotkey exists)
-			if (hotkey) {
-				const hotkeyKbd = createElement('kbd', {
-					className: 'settings-key',
-					textContent: hotkey,
-				})
-				item.append(labelSpan, btn, hotkeyKbd)
-			} else {
-				item.append(labelSpan, btn)
-			}
+			const hotkeyKbd = createElement('kbd', {
+				className: 'settings-key',
+				textContent: hotkey || label.toLowerCase(),
+			})
+			item.append(labelSpan, btn, hotkeyKbd)
 
 			actionsGrid.appendChild(item)
 		},
@@ -231,74 +206,6 @@ const createThemesSection = () => {
 		themeGrid.appendChild(themeCard)
 	})
 
-	// Download card
-	const downloadCard = createElement('div', {
-		className: 'settings-theme-card',
-	})
-	const downloadBtn = createElement('button', {
-		className: 'settings-theme-control-btn',
-		title: 'Download themes.css',
-	})
-	const downloadIcon = createElement('iconify-icon', {
-		icon: 'tabler:download',
-		width: '16',
-		height: '16',
-	})
-	const downloadText = createElement('span', { textContent: 'Download' })
-	downloadBtn.append(downloadIcon, downloadText)
-	downloadCard.appendChild(downloadBtn)
-
-	// Upload card
-	const uploadCard = createElement('div', { className: 'settings-theme-card' })
-	const uploadBtn = createElement('button', {
-		className: 'settings-theme-control-btn',
-		title: 'Upload themes.css',
-	})
-	const uploadIcon = createElement('iconify-icon', {
-		icon: 'tabler:upload',
-		width: '16',
-		height: '16',
-	})
-	const uploadText = createElement('span', { textContent: 'Upload' })
-	uploadBtn.append(uploadIcon, uploadText)
-	uploadCard.appendChild(uploadBtn)
-
-	// Reset card
-	const resetCard = createElement('div', { className: 'settings-theme-card' })
-	const resetBtn = createElement('button', {
-		className: 'settings-theme-control-btn',
-		textContent: 'Reset',
-		title: 'Reset to built-in themes',
-	})
-	resetCard.appendChild(resetBtn)
-
-	// Event handlers
-	downloadBtn.addEventListener('click', async () => {
-		const { downloadText } = await import('./utils.js')
-
-		// Fetch the original themes.css file directly from GitHub
-		const response = await fetch('https://raw.githubusercontent.com/metaory/markon/refs/heads/master/src/themes.css')
-		const cssToDownload = await response.text()
-		downloadText('themes.css', cssToDownload)
-	})
-
-	uploadBtn.addEventListener('click', async () => {
-		const cssText = await openFileCSS()
-		if (cssText) {
-			saveCustomThemesCSS(cssText)
-			// Refresh the settings dialog to show new themes
-			location.reload()
-		}
-	})
-
-	resetBtn.addEventListener('click', () => {
-		clearCustomThemesCSS()
-		location.reload()
-	})
-
-	// TODO: temporary disable
-	// themeGrid.append(downloadCard, uploadCard, resetCard)
-
 	section.append(themeGrid)
 	return section
 }
@@ -312,6 +219,3 @@ const highlightCurrentTheme = themeGrid => {
 		card.classList.toggle('selected', card.classList.contains(`theme-${currentTheme}`))
 	})
 }
-
-// Export hotkeys for use in hotkeys module
-export { HOTKEYS }

@@ -12,6 +12,39 @@
   --shadow-strong: 0 0 24px color-mix(in srgb, black 32%, transparent);
 }
 
+#toast {
+  position: fixed;
+  bottom: 60px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 90vw;
+  padding: 16px 24px;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  background: var(--bg-light);
+  border: 2px solid var(--accent);
+  border-radius: 16px;
+  opacity: 0;
+  transform: translateX(-50%);
+  transition: all 0.3s ease;
+  box-shadow: 0 8px 32px var(--accent-alpha), 0 0 0 1px var(--accent-alpha);
+  backdrop-filter: blur(16px);
+  z-index: 10001;
+
+  &:not([hidden]) {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-4px);
+  }
+
+  iconify-icon {
+    flex-shrink: 0;
+  }
+}
+
 html {
   font-family: "Monaspace Krypton", system-ui, Helvetica, Arial, sans-serif;
   line-height: 1.5;
